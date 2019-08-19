@@ -118,4 +118,26 @@ public interface Node extends Lifecycle<NodeOptions>, Describer {
      * @param done     回调
      */
     void changePeers(final Configuration newPeers, final Closure done);
+
+    /**
+     *  重置配置
+     *
+     * @param newPeers    新的配置
+     */
+    Status resetPeers(final Configuration newPeers);
+
+    /**
+     *
+     *  启动快照
+     *
+     * @param done 回调
+     */
+    void snapshot(final Closure done);
+
+    /**
+     * 重置每个节点选举时间
+     *
+     * @param electionTimeoutMs   选举时间
+     */
+    void resetElectionTimeoutMs(final int electionTimeoutMs);
 }
