@@ -6,6 +6,7 @@ import com.zd.jraft.common.Describer;
 import com.zd.jraft.conf.Configuration;
 import com.zd.jraft.entity.PeerId;
 import com.zd.jraft.entity.Task;
+import com.zd.jraft.entity.UserLog;
 import com.zd.jraft.machine.Iterator;
 import com.zd.jraft.machine.StateMachine;
 import com.zd.jraft.option.NodeOptions;
@@ -120,15 +121,14 @@ public interface Node extends Lifecycle<NodeOptions>, Describer {
     void changePeers(final Configuration newPeers, final Closure done);
 
     /**
-     *  重置配置
+     * 重置配置
      *
-     * @param newPeers    新的配置
+     * @param newPeers 新的配置
      */
     Status resetPeers(final Configuration newPeers);
 
     /**
-     *
-     *  启动快照
+     * 启动快照
      *
      * @param done 回调
      */
@@ -137,7 +137,24 @@ public interface Node extends Lifecycle<NodeOptions>, Describer {
     /**
      * 重置每个节点选举时间
      *
-     * @param electionTimeoutMs   选举时间
+     * @param electionTimeoutMs 选举时间
      */
     void resetElectionTimeoutMs(final int electionTimeoutMs);
+
+
+    /**
+     * 转移leader到新的peer
+     *
+     * @param peer 新leader
+     * @return 操作状态
+     */
+    Status transferLeadershipTo(final PeerId peer);
+
+    /**
+     * 读取index第一个提交的log
+     *
+     * @param index log index
+     * @return log
+     */
+    UserLog readCommittedUserLog(final long index);
 }
