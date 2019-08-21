@@ -13,6 +13,16 @@ public enum RaftError {
     UNKNOWN(-1),
 
     /**
+     * 许可
+     */
+    EPERM(1008),
+
+    /**
+     * 服务器繁忙
+     */
+    EBUSY(1009),
+
+    /**
      * shutdown
      */
     EN_ODE_SHUTDOWN(10006);
