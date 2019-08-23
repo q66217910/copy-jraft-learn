@@ -36,4 +36,13 @@ public class NodeMetrics {
         return this.metrics != null;
     }
 
+    /**
+     * 记录操作时间
+     */
+    public void recordTimes(final String key, final long times) {
+        if (this.metrics != null) {
+            this.metrics.counter(key).inc(times);
+        }
+    }
+
 }
