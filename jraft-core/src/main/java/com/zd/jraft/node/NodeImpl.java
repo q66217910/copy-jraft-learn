@@ -1,5 +1,7 @@
 package com.zd.jraft.node;
 
+import com.lmax.disruptor.EventFactory;
+import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.EventTranslator;
 import com.lmax.disruptor.RingBuffer;
 import com.zd.jraft.closure.Closure;
@@ -7,13 +9,17 @@ import com.zd.jraft.entity.LogEntry;
 import com.zd.jraft.entity.PeerId;
 import com.zd.jraft.entity.Task;
 import com.zd.jraft.error.RaftError;
+import com.zd.jraft.option.RaftOptions;
 import com.zd.jraft.rpc.RaftServerService;
 import com.zd.jraft.utils.Requires;
 import com.zd.jraft.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Node实现
@@ -21,6 +27,10 @@ import java.util.concurrent.CountDownLatch;
 public class NodeImpl implements Node, RaftServerService {
 
     private static final Logger LOG = LoggerFactory.getLogger(NodeImpl.class);
+
+    private RaftOptions raftOptions;
+
+    public static final AtomicInteger GLOBAL_NUM_NODES = new AtomicInteger(0);
 
     private volatile CountDownLatch shutdownLatch;
 
@@ -84,5 +94,35 @@ public class NodeImpl implements Node, RaftServerService {
             this.shutdownLatch = null;
         }
 
+    }
+
+    private static class LogEntryAndClosureFactory implements EventFactory<LogEntryAndClosure> {
+
+        @Override
+        public LogEntryAndClosure newInstance() {
+            return new LogEntryAndClosure();
+        }
+    }
+
+    private class LogEntryAndClosureHandler implements EventHandler<LogEntryAndClosure> {
+
+        private final List<LogEntryAndClosure> tasks = new ArrayList<>(NodeImpl.this.raftOptions.getApplyBatch());
+
+        @Override
+        public void onEvent(LogEntryAndClosure event, long sequence, boolean endOfBatch) throws Exception {
+            //获取到锁
+            if (event.shutdownLatch != null) {
+                if (!this.tasks.isEmpty()) {
+                    //执行任务
+                }
+                final int num = GLOBAL_NUM_NODES.decrementAndGet();
+                LOG.info("The number of active nodes decrement to {}.", num);
+                event.shutdownLatch.countDown();
+                return;
+            }
+            //没有获取到锁
+            this.tasks.add(event);
+            if ()
+        }
     }
 }
