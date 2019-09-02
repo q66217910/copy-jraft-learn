@@ -70,5 +70,14 @@ public class Status implements Copiable<Status> {
                 return this.msg.equals(other.msg);
             }
         }
+
+    }
+
+    public void setError(int code, String fmt, Object... args) {
+        this.state = new State(code, String.format(fmt, args));
+    }
+
+    public void setError(RaftError error, String fmt, Object... args) {
+        this.state = new State(error.getNumber(), String.format(fmt, args));
     }
 }

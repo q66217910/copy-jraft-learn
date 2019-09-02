@@ -7,6 +7,7 @@ import com.lmax.disruptor.RingBuffer;
 import com.zd.jraft.closure.Closure;
 import com.zd.jraft.entity.LogEntry;
 import com.zd.jraft.entity.PeerId;
+import com.zd.jraft.entity.State;
 import com.zd.jraft.entity.Task;
 import com.zd.jraft.error.RaftError;
 import com.zd.jraft.option.RaftOptions;
@@ -20,6 +21,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Node实现
@@ -27,6 +31,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class NodeImpl implements Node, RaftServerService {
 
     private static final Logger LOG = LoggerFactory.getLogger(NodeImpl.class);
+
+    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+
+    protected final Lock writeLock = this.readWriteLock.writeLock();
+    protected final Lock readLock = this.readWriteLock.readLock();
+
+    private volatile State state;
+
+    private BallotBox ballotBox;
+
+    private long currTerm;
 
     private RaftOptions raftOptions;
 
@@ -114,6 +129,7 @@ public class NodeImpl implements Node, RaftServerService {
             if (event.shutdownLatch != null) {
                 if (!this.tasks.isEmpty()) {
                     //执行任务
+                    executeApplyingTasks(tasks);
                 }
                 final int num = GLOBAL_NUM_NODES.decrementAndGet();
                 LOG.info("The number of active nodes decrement to {}.", num);
@@ -122,7 +138,56 @@ public class NodeImpl implements Node, RaftServerService {
             }
             //没有获取到锁
             this.tasks.add(event);
-            if ()
+            if (this.tasks.size() >= NodeImpl.this.raftOptions.getApplyBatch() || endOfBatch) {
+                //大于最大任务数，直接运行，并把任务清空
+                executeApplyingTasks(tasks);
+                this.tasks.clear();
+            }
+        }
+    }
+
+    /**
+     * 执行任务
+     */
+    private void executeApplyingTasks(final List<LogEntryAndClosure> tasks) {
+        this.writeLock.lock();
+        try {
+            final int size = tasks.size();
+            if (this.state != State.STATE_LEADER) {
+                //不是leader
+                final Status st = new Status();
+                if (this.state != State.STATE_TRANSFERRING) {
+                    st.setError(RaftError.EPERM, "Is not leader.");
+                } else {
+                    st.setError(RaftError.EBUSY, "Is transferring leadership.");
+                }
+                LOG.debug("Node {} can't apply, status={}.", getNodeId(), st);
+                for (LogEntryAndClosure task : tasks) {
+                    Utils.runClosureInThread(task.done, st);
+                }
+                return;
+            }
+            //是leader
+            final List<LogEntry> entries = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                final LogEntryAndClosure task = tasks.get(i);
+                if (task.expectedTerm != -1 && task.expectedTerm != this.currTerm) {
+                    LOG.debug("Node {} can't apply task whose expectedTerm={} doesn't match currTerm={}.", getNodeId(),
+                            task.expectedTerm, this.currTerm);
+                    if (task.done != null) {
+                        final Status st = new Status(RaftError.EPERM, "expected_term=%d doesn't match current_term=%d",
+                                task.expectedTerm, this.currTerm);
+                        Utils.runClosureInThread(task.done, st);
+                    }
+                    continue;
+                }
+                if (!this.ballotBox) {
+                }
+                task.entry.getId();
+            }
+
+        } finally {
+            this.writeLock.unlock();
         }
     }
 }
