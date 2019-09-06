@@ -13,6 +13,11 @@ public enum RaftError {
     UNKNOWN(-1),
 
     /**
+     * 内部异常
+     */
+    EINTERNAL(1004),
+
+    /**
      * 许可
      */
     EPERM(1008),

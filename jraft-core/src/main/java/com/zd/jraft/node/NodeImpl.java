@@ -5,10 +5,7 @@ import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.EventTranslator;
 import com.lmax.disruptor.RingBuffer;
 import com.zd.jraft.closure.Closure;
-import com.zd.jraft.entity.LogEntry;
-import com.zd.jraft.entity.PeerId;
-import com.zd.jraft.entity.State;
-import com.zd.jraft.entity.Task;
+import com.zd.jraft.entity.*;
 import com.zd.jraft.error.RaftError;
 import com.zd.jraft.option.RaftOptions;
 import com.zd.jraft.rpc.RaftServerService;
@@ -44,6 +41,8 @@ public class NodeImpl implements Node, RaftServerService {
     private long currTerm;
 
     private RaftOptions raftOptions;
+
+    private ConfigurationEntry conf;
 
     public static final AtomicInteger GLOBAL_NUM_NODES = new AtomicInteger(0);
 
@@ -154,7 +153,7 @@ public class NodeImpl implements Node, RaftServerService {
         try {
             final int size = tasks.size();
             if (this.state != State.STATE_LEADER) {
-                //不是leader
+                //不是leader,设置错误，执行回调
                 final Status st = new Status();
                 if (this.state != State.STATE_TRANSFERRING) {
                     st.setError(RaftError.EPERM, "Is not leader.");
@@ -171,6 +170,7 @@ public class NodeImpl implements Node, RaftServerService {
             final List<LogEntry> entries = new ArrayList<>(size);
             for (int i = 0; i < size; i++) {
                 final LogEntryAndClosure task = tasks.get(i);
+                //选举term届数不对，不进行同步
                 if (task.expectedTerm != -1 && task.expectedTerm != this.currTerm) {
                     LOG.debug("Node {} can't apply task whose expectedTerm={} doesn't match currTerm={}.", getNodeId(),
                             task.expectedTerm, this.currTerm);
@@ -181,9 +181,14 @@ public class NodeImpl implements Node, RaftServerService {
                     }
                     continue;
                 }
-                if (!this.ballotBox) {
+                if (!this.ballotBox.appendPendingTask(this.conf.getConf(),
+                        this.conf.isStable() ? null : this.conf.getOldConf(), task.done)) {
+                    Utils.runClosureInThread(task.done, new Status(RaftError.EINTERNAL, "Fail to append task."));
+                    continue;
                 }
-                task.entry.getId();
+                task.entry.getId().setTerm(this.currTerm);
+                task.entry.setType(EnumOuter.EntryType.ENTRY_TYPE_DATA);
+                entries.add(task.entry);
             }
 
         } finally {
