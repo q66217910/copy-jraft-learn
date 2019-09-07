@@ -28,6 +28,11 @@ public enum RaftError {
     EBUSY(1009),
 
     /**
+     * IO error
+     */
+    EIO(1014),
+
+    /**
      * shutdown
      */
     EN_ODE_SHUTDOWN(10006);

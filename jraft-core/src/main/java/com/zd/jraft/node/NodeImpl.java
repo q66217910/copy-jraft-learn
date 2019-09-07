@@ -5,10 +5,12 @@ import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.EventTranslator;
 import com.lmax.disruptor.RingBuffer;
 import com.zd.jraft.closure.Closure;
+import com.zd.jraft.closure.LeaderStableClosure;
 import com.zd.jraft.entity.*;
 import com.zd.jraft.error.RaftError;
 import com.zd.jraft.option.RaftOptions;
 import com.zd.jraft.rpc.RaftServerService;
+import com.zd.jraft.storage.LogManager;
 import com.zd.jraft.utils.Requires;
 import com.zd.jraft.utils.Utils;
 import org.slf4j.Logger;
@@ -28,6 +30,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class NodeImpl implements Node, RaftServerService {
 
     private static final Logger LOG = LoggerFactory.getLogger(NodeImpl.class);
+
+    private LogManager logManager;
 
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
@@ -190,7 +194,10 @@ public class NodeImpl implements Node, RaftServerService {
                 task.entry.setType(EnumOuter.EntryType.ENTRY_TYPE_DATA);
                 entries.add(task.entry);
             }
-
+            //添加条目
+            logManager.appendEntries(entries, new LeaderStableClosure(entries));
+            //更新配置文件
+            this.conf = this.logManager.checkAndSetConfiguration(this.conf);
         } finally {
             this.writeLock.unlock();
         }

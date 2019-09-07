@@ -85,6 +85,11 @@ public class LogEntry implements Checksum {
         this.data = data;
     }
 
+    public void setChecksum(final long checksum) {
+        this.checksum = checksum;
+        this.hasChecksum = true;
+    }
+
     @Override
     public String toString() {
         return "LogEntry [type=" + this.type + ", id=" + this.id + ", peers=" + this.peers + ", oldPeers="
