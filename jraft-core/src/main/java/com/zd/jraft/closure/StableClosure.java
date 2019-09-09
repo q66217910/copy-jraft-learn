@@ -24,6 +24,7 @@ public abstract class StableClosure implements Closure {
         }
     }
 
+    
     public long getFirstLogIndex() {
         return this.firstLogIndex;
     }

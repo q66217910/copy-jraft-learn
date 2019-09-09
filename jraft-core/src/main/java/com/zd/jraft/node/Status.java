@@ -19,8 +19,16 @@ public class Status implements Copiable<Status> {
         this.state = new State(code, String.format(fmt, args));
     }
 
+    public static Status OK() {
+        return new Status();
+    }
+
     public Status(RaftError raftError, String fmt, Object... args) {
         this.state = new State(raftError.getNumber(), String.format(fmt, args));
+    }
+
+    public String getErrorMsg() {
+        return this.state == null ? null : this.state.msg;
     }
 
     @Override

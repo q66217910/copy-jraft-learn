@@ -117,4 +117,112 @@ public class EnumOuter {
             return EnumOuter.getDescriptor().getEnumTypes().get(0);
         }
     }
+
+
+    public enum ErrorType implements com.google.protobuf.ProtocolMessageEnum {
+
+
+        /**
+         * <code>ERROR_TYPE_NONE = 0;</code>
+         */
+        ERROR_TYPE_NONE(0),
+        /**
+         * <code>ERROR_TYPE_LOG = 1;</code>
+         */
+        ERROR_TYPE_LOG(1),
+        /**
+         * <code>ERROR_TYPE_STABLE = 2;</code>
+         */
+        ERROR_TYPE_STABLE(2),
+        /**
+         * <code>ERROR_TYPE_SNAPSHOT = 3;</code>
+         */
+        ERROR_TYPE_SNAPSHOT(3),
+        /**
+         * <code>ERROR_TYPE_STATE_MACHINE = 4;</code>
+         */
+        ERROR_TYPE_STATE_MACHINE(4),
+        /**
+         * <code>ERROR_TYPE_META = 5;</code>
+         */
+        ERROR_TYPE_META(5),
+        ;
+
+        /**
+         * <code>ERROR_TYPE_NONE = 0;</code>
+         */
+        public static final int ERROR_TYPE_NONE_VALUE = 0;
+        /**
+         * <code>ERROR_TYPE_LOG = 1;</code>
+         */
+        public static final int ERROR_TYPE_LOG_VALUE = 1;
+        /**
+         * <code>ERROR_TYPE_STABLE = 2;</code>
+         */
+        public static final int ERROR_TYPE_STABLE_VALUE = 2;
+        /**
+         * <code>ERROR_TYPE_SNAPSHOT = 3;</code>
+         */
+        public static final int ERROR_TYPE_SNAPSHOT_VALUE = 3;
+        /**
+         * <code>ERROR_TYPE_STATE_MACHINE = 4;</code>
+         */
+        public static final int ERROR_TYPE_STATE_MACHINE_VALUE = 4;
+        /**
+         * <code>ERROR_TYPE_META = 5;</code>
+         */
+        public static final int ERROR_TYPE_META_VALUE = 5;
+
+        private final int value;
+
+        private ErrorType(int value) {
+            this.value = value;
+        }
+
+        public final int getNumber() {
+            return value;
+        }
+
+        public final com.google.protobuf.Descriptors.EnumValueDescriptor getValueDescriptor() {
+            return getDescriptor().getValues().get(ordinal());
+        }
+
+        public final com.google.protobuf.Descriptors.EnumDescriptor getDescriptorForType() {
+            return getDescriptor();
+        }
+
+        public static final com.google.protobuf.Descriptors.EnumDescriptor getDescriptor() {
+            return com.zd.jraft.entity.EnumOuter.getDescriptor().getEnumTypes().get(1);
+        }
+
+        private static final com.google.protobuf.Internal.EnumLiteMap<ErrorType> internalValueMap = new com.google.protobuf.Internal.EnumLiteMap<ErrorType>() {
+            public ErrorType findValueByNumber(int number) {
+                return ErrorType
+                        .forNumber(number);
+            }
+        };
+
+        public static ErrorType forNumber(int value) {
+            switch (value) {
+                case 0:
+                    return ERROR_TYPE_NONE;
+                case 1:
+                    return ERROR_TYPE_LOG;
+                case 2:
+                    return ERROR_TYPE_STABLE;
+                case 3:
+                    return ERROR_TYPE_SNAPSHOT;
+                case 4:
+                    return ERROR_TYPE_STATE_MACHINE;
+                case 5:
+                    return ERROR_TYPE_META;
+                default:
+                    return null;
+            }
+        }
+
+        public static com.google.protobuf.Internal.EnumLiteMap<ErrorType> internalGetValueMap() {
+            return internalValueMap;
+        }
+    }
 }
