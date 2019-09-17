@@ -12,6 +12,7 @@ import com.zd.jraft.option.RaftOptions;
 import com.zd.jraft.rpc.RaftServerService;
 import com.zd.jraft.storage.LogManager;
 import com.zd.jraft.utils.Requires;
+import com.zd.jraft.utils.ThreadHelper;
 import com.zd.jraft.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,6 +92,7 @@ public class NodeImpl implements Node, RaftServerService {
                         LOG.warn("Node {} applyQueue is overload.", getNodeId());
                         this.metrics.recordTimes("apply-task-overload-times", 1);
                     }
+                    ThreadHelper.onSpinWait();
                 }
             }
         } catch (final Exception e) {

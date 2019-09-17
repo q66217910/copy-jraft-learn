@@ -15,6 +15,7 @@ import com.zd.jraft.machine.FSMCaller;
 import com.zd.jraft.node.Status;
 import com.zd.jraft.option.RaftOptions;
 import com.zd.jraft.utils.Requires;
+import com.zd.jraft.utils.ThreadHelper;
 import com.zd.jraft.utils.Utils;
 
 import javax.lang.model.type.ErrorType;
@@ -106,7 +107,7 @@ public class LogManagerImpl implements LogManager {
                         reportError(RaftError.EBUSY.getNumber(), "LogManager is busy, disk queue overload.");
                         return;
                     }
-                    ThreadHelper
+                    ThreadHelper.onSpinWait();
                 }
             }
         } finally {
