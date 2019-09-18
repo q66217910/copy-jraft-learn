@@ -19,4 +19,25 @@ public interface LogManager extends Lifecycle<LogManager>, Describer {
      */
     ConfigurationEntry checkAndSetConfiguration(final ConfigurationEntry current);
 
+    interface NewLogCallback {
+
+        /**
+         * 当新log插入
+         *
+         * @param arg       the waiter pass-in argument
+         * @param errorCode error code
+         */
+        boolean onNewLog(final Object arg, final int errorCode);
+    }
+
+    interface LastLogIndexListener {
+
+        /**
+         * 当最终index改变时
+         *
+         * @param lastLogIndex last log index
+         */
+        void onLastLogIndexChanged(final long lastLogIndex);
+    }
+
 }
