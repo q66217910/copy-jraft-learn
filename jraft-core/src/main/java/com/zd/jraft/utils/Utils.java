@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class Utils {
 
@@ -46,6 +47,11 @@ public class Utils {
      */
     public static int cpus() {
         return CPUS;
+    }
+
+
+    public static long monotonicMs() {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
     }
 
     /**

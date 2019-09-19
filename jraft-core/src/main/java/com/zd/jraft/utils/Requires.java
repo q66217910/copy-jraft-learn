@@ -15,4 +15,22 @@ public final class Requires {
         }
         return obj;
     }
+
+    public static void requireTrue(boolean expression, String fmt, Object... args) {
+        if (!expression) {
+            throw new IllegalArgumentException(String.format(fmt, args));
+        }
+    }
+
+    public static void requireTrue(boolean expression, Object message) {
+        if (!expression) {
+            throw new IllegalArgumentException(String.valueOf(message));
+        }
+    }
+
+    public static void requireTrue(boolean expression) {
+        if (!expression) {
+            throw new IllegalArgumentException();
+        }
+    }
 }

@@ -5,6 +5,7 @@ import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.EventTranslator;
 import com.lmax.disruptor.RingBuffer;
 import com.zd.jraft.closure.StableClosure;
+import com.zd.jraft.closure.TruncatePrefixClosure;
 import com.zd.jraft.conf.Configuration;
 import com.zd.jraft.conf.ConfigurationManager;
 import com.zd.jraft.entity.ConfigurationEntry;
@@ -16,15 +17,16 @@ import com.zd.jraft.error.RaftException;
 import com.zd.jraft.machine.FSMCaller;
 import com.zd.jraft.node.Status;
 import com.zd.jraft.option.RaftOptions;
+import com.zd.jraft.utils.ArrayDeque;
 import com.zd.jraft.utils.Requires;
 import com.zd.jraft.utils.ThreadHelper;
 import com.zd.jraft.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.lang.model.type.ErrorType;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -40,6 +42,7 @@ public class LogManagerImpl implements LogManager {
 
     private FSMCaller fsmCaller;
 
+
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final Lock writeLock = this.lock.writeLock();
     private final Lock readLock = this.lock.readLock();
@@ -51,9 +54,11 @@ public class LogManagerImpl implements LogManager {
     private ConfigurationManager configManager;
     private ArrayDeque<LogEntry> logsInMemory = new ArrayDeque<>();
     private RingBuffer<StableClosureEvent> diskQueue;
+    private volatile CountDownLatch shutDownLatch;
 
 
     private LogId diskId = new LogId(0, 0);
+    private LogId appliedId = new LogId(0, 0);
 
     private final CopyOnWriteArrayList<LastLogIndexListener> lastLogIndexListeners = new CopyOnWriteArrayList<>();
 
@@ -228,8 +233,72 @@ public class LogManagerImpl implements LogManager {
 
             if (event.type == EventType.SHUTDOWN) {
                 this.lastId = this.ab.flush();
+                setDiskId(this.lastId);
+                LogManagerImpl.this.shutDownLatch.countDown();
+                return;
             }
 
+            final StableClosure done = event.done;
+            if (done.getEntries() != null && !done.getEntries().isEmpty()) {
+                this.ab.append(done);
+            } else {
+                this.lastId = this.ab.flush();
+                boolean ret = true;
+                switch (event.type) {
+                    case LAST_LOG_ID:
+                        ((LastLogIdClosure) done).setLastLogId(this.lastId.copy());
+                        break;
+                    case TRUNCATE_PREFIX:
+                        long startMs = Utils.monotonicMs();
+                        try {
+                            final TruncatePrefixClosure tpc = (TruncatePrefixClosure) done;
+                        }
+                }
+            }
+        }
+    }
+
+    /**
+     * 设置当前最新Log
+     */
+    private void setDiskId(final LogId id) {
+        if (id == null) {
+            return;
+        }
+        LogId clearId;
+        this.writeLock.lock();
+        try {
+            //对比选举届数
+            if (id.compareTo(this.diskId) < 0) {
+                return;
+            }
+            this.diskId = id;
+            clearId = this.diskId.compareTo(this.appliedId) <= 0 ? this.diskId : this.appliedId;
+        } finally {
+            this.writeLock.unlock();
+        }
+        //清理内存中的log，删除当前选举届以前的数据
+        clearMemoryLogs(clearId);
+    }
+
+    /**
+     * 清理内存中的log，删除当前选举届以前的数据
+     */
+    private void clearMemoryLogs(final LogId id) {
+        this.writeLock.lock();
+        try {
+            int index = 0;
+            for (final int size = this.logsInMemory.size(); index < size; index++) {
+                final LogEntry entry = this.logsInMemory.get(index);
+                if (entry.getId().compareTo(id) > 0) {
+                    break;
+                }
+            }
+            if (index > 0) {
+                this.logsInMemory.removeRange(0, index);
+            }
+        } finally {
+            this.writeLock.unlock();
         }
     }
 
@@ -272,6 +341,18 @@ public class LogManagerImpl implements LogManager {
             this.bufferSize = 0;
             return this.lastId;
         }
+
+        void append(final StableClosure done) {
+            if (this.size == this.cap || this.bufferSize >= LogManagerImpl.this.raftOptions.getMaxAppendBufferSize()) {
+                flush();
+            }
+            this.storage.add(done);
+            this.size++;
+            this.toAppend.addAll(done.getEntries());
+            for (final LogEntry entry : done.getEntries()) {
+                this.bufferSize += entry.getData() != null ? entry.getData().remaining() : 0;
+            }
+        }
     }
 
     private static class WaitMeta {
@@ -293,6 +374,32 @@ public class LogManagerImpl implements LogManager {
             this.onNewLog = onNewLog;
             this.arg = arg;
             this.errorCode = errorCode;
+        }
+
+    }
+
+    private static class LastLogIdClosure extends StableClosure {
+
+        public LastLogIdClosure() {
+            super(null);
+        }
+
+        private LogId lastLogId;
+
+        void setLastLogId(final LogId logId) {
+            Requires.requireTrue(logId.getIndex() == 0 || logId.getTerm() != 0);
+            this.lastLogId = logId;
+        }
+
+        private final CountDownLatch latch = new CountDownLatch(1);
+
+        @Override
+        public void run(final Status status) {
+            this.latch.countDown();
+        }
+
+        void await() throws InterruptedException {
+            this.latch.await();
         }
 
     }
